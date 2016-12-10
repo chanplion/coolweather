@@ -7,7 +7,7 @@
     <list>
         <mapping class="com.xiaoxuan.coolweather.model.Province"/>
         <mapping class="com.xiaoxuan.coolweather.model.City"/>
-        <mapping class="com.xiaoxuan.coolweather.model.Country"/>
+        <mapping class="com.xiaoxuan.coolweather.model.County"/>
     </list>
 
 </litepal>

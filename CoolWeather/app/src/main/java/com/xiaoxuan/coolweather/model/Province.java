@@ -1,10 +1,12 @@
 package com.xiaoxuan.coolweather.model;
 
+import org.litepal.crud.DataSupport;
+
 /**
  * Created by xiaoxuan on 2016/12/10 0010.
  */
 
-public class Province {
+public class Province extends DataSupport {
 
     private int id;
     private String proviceName;
