@@ -1,8 +1,10 @@
 package com.xiaoxuan.coolweather.fragment;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.ShareCompat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,6 +16,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.xiaoxuan.coolweather.R;
+import com.xiaoxuan.coolweather.activity.WeatherActivity;
 import com.xiaoxuan.coolweather.model.City;
 import com.xiaoxuan.coolweather.model.County;
 import com.xiaoxuan.coolweather.model.Province;
@@ -80,6 +83,11 @@ public class ChooseAreaFragment extends Fragment {
                 } else if (currentLevel == LEVEL_CITY) {
                     selectedCity = cities.get(position);
                     queryCounties();
+                } else if (currentLevel == LEVEL_COUNTY) {
+                    String weatherId = counties.get(position).getWeatherId();
+                    Intent intent = new Intent(getActivity(), WeatherActivity.class);
+                    intent.putExtra("weather_id", weatherId);
+                    startActivity(intent);
                 }
             }
         });
@@ -123,7 +131,7 @@ public class ChooseAreaFragment extends Fragment {
     private void queryCities() {
         titleText.setText(selectedProvince.getProviceName());
         backButton.setVisibility(View.VISIBLE);
-        cities = DataSupport.where("provinceid = ?", String.valueOf(selectedProvince.getId()))
+        cities = DataSupport.where("provinceid = ?", String.valueOf(selectedProvince.getProvinceCode()))
                 .find(City.class);
         if (cities.size() > 0) {
             dataList.clear();
@@ -146,7 +154,7 @@ public class ChooseAreaFragment extends Fragment {
     private void queryCounties() {
         titleText.setText(selectedCity.getCityName());
         backButton.setVisibility(View.VISIBLE);
-        counties = DataSupport.where("cityid = ?", String.valueOf(selectedCity.getId())).find(County.class);
+        counties = DataSupport.where("cityid = ?", String.valueOf(selectedCity.getCityCode())).find(County.class);
         if (counties.size() > 0) {
             dataList.clear();
             for (County county : counties) {
@@ -189,9 +197,9 @@ public class ChooseAreaFragment extends Fragment {
                 if ("province".equals(type)) {
                     result = Utility.handleProvinceResponse(responseText);
                 } else if ("city".equals(type)) {
-                    result = Utility.handleCityResponse(responseText, selectedProvince.getId());
+                    result = Utility.handleCityResponse(responseText, selectedProvince.getProvinceCode());
                 } else if ("county".equals(type)) {
-                    result = Utility.handleCountyResponse(responseText, selectedCity.getId());
+                    result = Utility.handleCountyResponse(responseText, selectedCity.getCityCode());
                 }
                 if (result != false) {
                     getActivity().runOnUiThread(new Runnable() {
