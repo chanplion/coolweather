@@ -10,31 +10,39 @@
         android:layout_height="match_parent"
         android:scaleType="centerCrop"/>
 
-    <ScrollView
-        android:id="@+id/scrollview_weather"
+    <android.support.v4.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scrollbars="none"
-        android:overScrollMode="never">
+        android:layout_height="match_parent">
 
-        <LinearLayout
+        <ScrollView
+            android:id="@+id/scrollview_weather"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:fitsSystemWindows="true">
+            android:scrollbars="none"
+            android:overScrollMode="never">
 
-            <include layout="@layout/include_title"/>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:fitsSystemWindows="true">
 
-            <include layout="@layout/weather_city_now"/>
+                <include layout="@layout/include_title"/>
 
-            <include layout="@layout/weather_city_forecast"/>
+                <include layout="@layout/weather_city_now"/>
 
-            <include layout="@layout/weather_city_aqi"/>
+                <include layout="@layout/weather_city_forecast"/>
 
-            <include layout="@layout/weather_suggestion"/>
+                <include layout="@layout/weather_city_aqi"/>
 
-        </LinearLayout>
+                <include layout="@layout/weather_suggestion"/>
 
-    </ScrollView>
+            </LinearLayout>
+
+        </ScrollView>
+
+
+    </android.support.v4.widget.SwipeRefreshLayout>
 
 </FrameLayout>
