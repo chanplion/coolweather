@@ -4,7 +4,6 @@ import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
-import android.support.v4.app.ShareCompat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,6 +20,8 @@ import com.xiaoxuan.coolweather.activity.WeatherActivity;
 import com.xiaoxuan.coolweather.model.City;
 import com.xiaoxuan.coolweather.model.County;
 import com.xiaoxuan.coolweather.model.Province;
+import com.xiaoxuan.coolweather.mvp.presenter.IWeatherPresenter;
+import com.xiaoxuan.coolweather.mvp.impl.WeatherPresenterImpl;
 import com.xiaoxuan.coolweather.util.HttpUtil;
 import com.xiaoxuan.coolweather.util.Utility;
 
@@ -94,7 +95,8 @@ public class ChooseAreaFragment extends Fragment {
                         WeatherActivity weatherActivity = (WeatherActivity) getActivity();
                         weatherActivity.drawerLayout.closeDrawers();
                         weatherActivity.swipeRefreshLayout.setRefreshing(true);
-                        weatherActivity.requestWeather(weatherId);
+                        IWeatherPresenter presenter = new WeatherPresenterImpl(weatherActivity);
+                        presenter.requestWeather(weatherId);
                     }
                 }
             }

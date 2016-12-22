@@ -21,24 +21,23 @@ import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.xiaoxuan.coolweather.R;
+import com.xiaoxuan.coolweather.common.Common;
 import com.xiaoxuan.coolweather.gson.Forecast;
 import com.xiaoxuan.coolweather.gson.Weather;
-import com.xiaoxuan.coolweather.util.HttpUtil;
-import com.xiaoxuan.coolweather.util.Utility;
+import com.xiaoxuan.coolweather.mvp.presenter.IWeatherPresenter;
+import com.xiaoxuan.coolweather.mvp.view.IWeatherView;
+import com.xiaoxuan.coolweather.mvp.impl.WeatherPresenterImpl;
 
 import java.io.IOException;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Response;
 
 /**
  * Created by xiaoxuan on 2016/12/13 0013.
  */
 
-public class WeatherActivity extends AppCompatActivity {
+public class WeatherActivity extends AppCompatActivity implements IWeatherView{
     @Bind(R.id.iv_bing_pic)
     ImageView ivBingPic;
     @Bind(R.id.drawerLayout)
@@ -71,6 +70,8 @@ public class WeatherActivity extends AppCompatActivity {
     ScrollView scrollviewWeather;
 
     private SharedPreferences pref;
+    private SharedPreferences.Editor editor;
+    private IWeatherPresenter presenter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,34 +81,37 @@ public class WeatherActivity extends AppCompatActivity {
         initView();
     }
 
-    //加载背景图
-    private void loadBackground() {
-        pref = getSharedPreferences("bgImg", MODE_PRIVATE);
-        String bgImg = pref.getString("bg_img", null);
-        if (bgImg != null) {
-            Glide.with(this).load(bgImg).into(ivBingPic);
-        } else {
-            String requestBgImg = "http://guolin.tech/api/bing_pic";
-            HttpUtil.sendOkHttpRequest(requestBgImg, new Callback() {
-                @Override
-                public void onFailure(Call call, IOException e) {
-                    Log.e("BingPicError", e.getMessage());
-                }
+    private void initView() {
+        loadBackground();//加载背景图
+        combineBgWithStatusBar();//融合背景图和状态栏
+        String weatherString = pref.getString("weather", null);
+        final String initWeatherId = getIntent().getStringExtra("weather_id");//获取从选择区域得来的原始的weatherId值
+        final String weatherId = presenter.getCacheOrRequest(weatherString, initWeatherId);//若已有缓存则直接读取，没有则通过原始的id值获取网络数据
+        swipeRefreshLayout.setColorSchemeColors(R.color.colorAccent);
+        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                presenter.requestWeather(weatherId);//刷新天气数据
+            }
+        });
+        btnSelect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                drawerLayout.openDrawer(GravityCompat.START);//打开侧边栏菜单
+            }
+        });
+    }
 
-                @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    final String bgPic = response.body().string();
-                    SharedPreferences.Editor editor = pref.edit();
-                    editor.putString("bg_img", bgPic);
-                    editor.apply();
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Glide.with(WeatherActivity.this).load(bgPic).into(ivBingPic);
-                        }
-                    });
-                }
-            });
+    //加载背景图,先读缓存,缓存没有则到网络去加载
+    private void loadBackground() {
+        presenter = new WeatherPresenterImpl(this);
+        pref = PreferenceManager.getDefaultSharedPreferences(this);//初始化
+        editor = pref.edit();
+        String bgImg = pref.getString("bg_img", null);
+        if (bgImg == null) {
+            presenter.loadBackground(Common.requestBgImg);
+        } else {
+            Glide.with(this).load(bgImg).into(ivBingPic);
         }
     }
 
@@ -121,85 +125,73 @@ public class WeatherActivity extends AppCompatActivity {
         }
     }
 
-    private void initView() {
-        loadBackground();//加载背景图
-        combineBgWithStatusBar();//融合背景图和状态栏
-        swipeRefreshLayout.setColorSchemeColors(R.color.colorAccent);
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-        String weatherString = preferences.getString("weather", null);
-        final String weatherId;
-        if (weatherString != null) {
-            //直接解析缓存的天气数据
-            Weather weather = Utility.handleWeatherResponse(weatherString);
-            weatherId = weather.basic.weatherId;
-            showWeatherInfo(weather);
-        } else {
-            //没有缓存从网上获取数据
-            weatherId = getIntent().getStringExtra("weather_id");
-            scrollviewWeather.setVisibility(View.INVISIBLE);
-            requestWeather(weatherId);
-        }
-        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+    //网络获取背景图片后先缓存后显示
+    @Override
+    public void loadBackground(final String bgPic) {
+        editor.putString("bg_img", bgPic);
+        editor.apply();
+        runOnUiThread(new Runnable() {
             @Override
-            public void onRefresh() {
-                requestWeather(weatherId);
-            }
-        });
-        btnSelect.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                drawerLayout.openDrawer(GravityCompat.START);
+            public void run() {
+                Glide.with(WeatherActivity.this).load(bgPic).into(ivBingPic);
             }
         });
     }
 
-    public void requestWeather(String weatherId) {
-        String weatherUrl = "http://guolin.tech/api/weather?cityid=" + weatherId + "&key=bc0418b57b2d4918819d3974ac1285d9";
-        HttpUtil.sendOkHttpRequest(weatherUrl, new Callback() {
+    //网络中的天气数据
+    @Override
+    public void showWeatherInfo(final Weather weather, final String responseText) {
+        runOnUiThread(new Runnable() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                Log.e("WEATHER_SEND_ERROR", e.getMessage());
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(WeatherActivity.this,"获取天气信息失败",Toast.LENGTH_SHORT).show();
-                    }
-                });
-                swipeRefreshLayout.setRefreshing(false);
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                final String responseText = response.body().string();
-                final Weather weather = Utility.handleWeatherResponse(responseText);
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (weather != null && "ok".equals(weather.status)) {
-                            SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this)
-                                    .edit();
-                            editor.putString("weather", responseText);
-                            editor.apply();
-                            showWeatherInfo(weather);
-                        } else {
-                            Toast.makeText(WeatherActivity.this,"获取天气信息失败",Toast.LENGTH_SHORT).show();
-                        }
-                        swipeRefreshLayout.setRefreshing(false);
-                    }
-                });
+            public void run() {
+                if (weather != null && "ok".equals(weather.status)) {
+                    editor.putString("weather", responseText);
+                    editor.apply();
+                    showWeatherView(weather);
+                } else {
+                    Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
+                }
+                closeRefresh();
             }
         });
     }
 
-    private void showWeatherInfo(Weather weather) {
-        String cityName = weather.basic.cityName;
-        String updateTime = weather.basic.update.updateTime.split(" ")[1];
-        String degree = weather.now.temperature + "℃";
-        String weatherInfo = weather.now.more.info;
-        titleCity.setText(cityName);
-        titleUpdateTime.setText(updateTime);
-        textDegree.setText(degree);
-        textWeatherInfo.setText(weatherInfo);
+    //请求数据失败
+    @Override
+    public void errorWeatherInfo() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(WeatherActivity.this,"获取天气信息失败",Toast.LENGTH_SHORT).show();
+                closeRefresh();
+            }
+        });
+    }
+
+    //加载图片错误信息
+    @Override
+    public void loadError(IOException e) {
+        Log.e("BingPicError", e.getMessage());
+    }
+
+    //关闭刷新
+    public void closeRefresh() {
+        swipeRefreshLayout.setRefreshing(false);
+    }
+
+    //设置Scrollbar不可见
+    @Override
+    public void inVisibleScrollBar() {
+        scrollviewWeather.setVisibility(View.INVISIBLE);
+    }
+
+    //把数据显示到页面上
+    @Override
+    public void showWeatherView(Weather weather) {
+        titleCity.setText(weather.basic.cityName);//城市名称
+        titleUpdateTime.setText(weather.basic.update.updateTime.split(" ")[1]);//刷新时间
+        textDegree.setText(weather.now.temperature + "℃");//温度
+        textWeatherInfo.setText(weather.now.more.info);//天气情况（多云、晴朗、阵雨）
         lltForecast.removeAllViews();
 
         for (Forecast forecast : weather.forecasts) {
@@ -223,9 +215,10 @@ public class WeatherActivity extends AppCompatActivity {
         String comfort = "舒适度：" + weather.suggestion.comfort.info;
         String carWash = "洗车指数：" + weather.suggestion.carWash.info;
         String sport = "运动建议：" + weather.suggestion.sport.info;
-        textComfort.setText(comfort);
-        textCarWash.setText(carWash);
-        textSport.setText(sport);
+        textComfort.setText(comfort);//舒适度
+        textCarWash.setText(carWash);//洗车指数
+        textSport.setText(sport);//运动建议
         scrollviewWeather.setVisibility(View.VISIBLE);
     }
+
 }
